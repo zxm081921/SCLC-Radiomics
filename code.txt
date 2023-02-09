@@ -1,0 +1,109 @@
+Kaplan-Meier curve:
+
+read.table("a.csv",header = T,sep=",")->a
+library(survminer)
+library(survival)
+fit <- survfit(Surv(time,status)~ sex, data = a)
+
+ggsurvplot(fit,
+           pval = TRUE, conf.int = TRUE,
+           risk.table = TRUE, 
+           risk.table.col = "strata",
+           linetype = "strata",
+           surv.median.line = "hv", 
+           ggtheme = theme_bw(), 
+           palette = c("#E7B800", "#2E9FDF"))
+
+
+Nomogram, DCA:
+
+library(foreign)
+library(rms)
+read.table("a.csv",header = T,sep=",")->a
+
+a$stage <- factor(a$stage,levels = c(0,1),
+                labels = c('Limited','Extensive'))
+a$CEA <- factor(a$CEA,levels = c(0,1),
+                 labels = c('≤24.00','＞24.00'))
+
+dd=datadist(a)
+options(datadist="dd") 
+
+coxm<-cph(Surv(time,status==1)~radscore + stage + CEA,x=T,y=T,data=a,surv=T)
+surv<-Survival(coxm)
+surv1<-function(x)surv(6,lp=x)
+surv2<-function(x)surv(9,lp=x)
+
+nom<-nomogram(coxm,fun=list(surv1,surv2),lp=F,
+              funlabel = c("6-month PFS","9-month PFS"),maxscale = 100,
+              fun.at=c('0.99','0.9','0.8','0.7','0.5','0.3','0.1','0.01'))
+plot((nom),xfrac=.3)
+
+install.packages("ggDCA",type = "binary")
+library("ggDCA")
+library(rms)
+library(survival)
+
+rm(list = ls())
+
+aa<- read.csv('a.CSV')
+bb<-datadist(aa)
+options(datadist='bb')
+
+model1<-coxph(Surv(time,status==1)~radscore + stage + CEA, data=aa)
+model2<-coxph(Surv(time,status==1)~radscore, data=aa)
+model3<-coxph(Surv(time,status==1)~stage + CEA, data=aa)
+
+dca1<- dca(model1,model2,model3,
+           times=6)
+ggplot(dca1,linetype =F, lwd = 1.1) 
+
+
+ROC:
+
+read.table("sample.csv",header = T,sep=",")->a
+head(a)
+library(pROC)
+library(ggplot2)
+install.packages("survival")
+library("survival")
+
+fit1 <- coxph(Surv(followup, depression) ~ stage+CEA+Radscore, data =a)
+fit1
+prediction1 <- predict(fit1,newdata=a,type='risk')
+prediction1
+roc1 <- roc(a$depression,prediction1,col='1',lwd=1,main='ROC Curves',plot = F)
+auc(roc1)
+round(ci.auc(roc1)[1:3],4)
+plot(roc1,print.auc=TRUE,auc.polygon=TRUE,max.auc.polygon=TRUE,
+     auc.polygon.col='skyblue',print.thres=TRUE,grid=c(0.1,0.2),grid.col=c('green','red'))
+
+
+
+NRI, IDI:
+
+install.packages("nricens")
+library(nricens)
+library(survival)
+a<- read.csv('AN YI.CSV')
+a<-na.omit(a)
+m1 = coxph(Surv(time,status)~Stage + CEA, data=a,x=TRUE)
+m2 = coxph(Surv(time,status)~Radscore, data=a,x=TRUE)
+m3 = coxph(Surv(time,status)~Radscore + Stage + CEA, data=a,x=TRUE)
+
+set.seed(123)
+nricens(mdl.std= m1, mdl.new = m2, t0 = 15, cut = c(0.3,0.7),
+        niter = 1000, updown = 'category')
+
+install.packages("survIDINRI",type = "binary")
+library(survIDINRI)
+a<- read.csv('train.CSV')
+a<-na.omit(a)
+Y<-a[,c("time","status")]
+m4 = a[,c("Stage","CEA")]
+m5 = a[,c("Radscore")]
+m6 = a[,c("Radscore","Stage","CEA")]
+
+X<-IDI.INF(Y, m5, m6, t0=12,npert=200)
+
+IDI.INF.OUT(X)
